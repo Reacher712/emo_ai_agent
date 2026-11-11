@@ -1,0 +1,11 @@
+# Recent stable packages, checked against the official PyPI metadata.
+# Install CUDA PyTorch separately first; see install.ps1.
+diffusers==0.42.0
+transformers==5.20.2
+accelerate==1.15.0
+huggingface-hub==2.3.0
+safetensors
+pillow
+fastapi==0.162.0
+uvicorn==0.54.0
+
