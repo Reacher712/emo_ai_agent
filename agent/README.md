@@ -1,6 +1,6 @@
 # 国画 Agent：LangGraph 框架
 
-按 `项目修改方案-改.md` 的简化架构实现：一个创作 Agent、一个固定评审节点和独立陪伴通道。当前是 **可运行的 mock 骨架**，不需要 API Key 或 GPU。
+`local-chat` 使用本机 Ollama 做多轮聊天和创作纲要预览。`assess` 提供单条消息评估。原有 LangGraph `chat` 和 `create` 命令继续使用模拟服务。
 
 ## 已实现
 
@@ -15,7 +15,7 @@
 
 ## 启动
 
-在 PowerShell 中进入本目录。当前工作区已经建立 `.venv` 并安装依赖；重新搭建时运行：
+在 PowerShell 中进入仓库的 `agent` 目录并安装依赖：
 
 ```powershell
 python -m venv .venv
@@ -57,6 +57,38 @@ python -m venv .venv
 ```powershell
 .\.venv\Scripts\python.exe -m ink_agent.cli --db-dir runtime/demo create "画一幅画" --scenario ask
 ```
+
+## 用本地 Qwen3.5-4B 预览创作纲要
+
+安装并启动 [Ollama](https://ollama.com/download)。模型由 Ollama 从 [Qwen3.5 模型库](https://ollama.com/library/qwen3.5:4b) 下载。聊天程序通过 `127.0.0.1:11434` 连接 Ollama。从 `agent` 目录运行：
+
+```powershell
+ollama pull qwen3.5:4b
+.\.venv\Scripts\python.exe -m ink_agent.cli local-chat
+```
+
+可以先聊近况，再分轮说出想要的题材和氛围。输入「开始创作」、`/create` 或「帮我画一幅竹林图」时，程序结合最近八轮与当前指令，输出六轴和创作纲要预览。普通聊天阶段只回复对话。输入 `/new` 清空对话，输入 `/quit` 退出。
+
+### 用 DeepSeek 生成国画提示词
+
+在启动聊天的 PowerShell 中设置 `DEEPSEEK_API_KEY`。下面的命令会提示输入密钥，输入过程隐藏，密钥只在本次 PowerShell 会话及其子进程中有效：
+
+```powershell
+$env:DEEPSEEK_API_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'DeepSeek API Key' -AsSecureString)).Password
+.\.venv\Scripts\python.exe -m ink_agent.cli local-chat
+```
+
+明确开始创作并得到画面纲要后，程序用 DeepSeek V4.1 Flash（API 模型名 `deepseek-flash`）把画面描述和已指定的六轴改写为国画提示词。普通聊天、情绪评估和情绪依据留在本地。终端显示的 `{"prompt":"..."}` 可以直接作为 Z-Image `/generate` 的请求体，尺寸和推理步数由图像服务使用默认值。缺少密钥或 API 失败时，仍可以查看本地纲要和六轴。
+
+需要测试单条消息时，可用 `assess`：
+
+```powershell
+.\.venv\Scripts\python.exe -m ink_agent.cli assess '我很紧张，但想看一幅明亮、有生机的画'
+```
+
+输出包含 `emotion_assessment`（空 `feelings` 表示未知）和 `support_plan`。明确要求创作时，输出额外包含 `brief` 和 `target_experience_axes`。评估使用原始消息，六轴只读取从原文摘出的创作要求。用户未指定的维度保留 `null`。服务不可用、超时或校验失败时，命令向标准错误输出原因并返回失败退出码。评估和纲要预览均为只读操作。
+
+真实推理样例见 [ollama-assess-sample.json](examples/ollama-assess-sample.json)。
 
 ## 在前端接入后台任务
 
@@ -106,7 +138,7 @@ tests/
 
 ## 当前边界与下一步
 
-1. **全部模型输出为 mock。** 规划尚未真正理解自然语言；创建/聊天由调用方明确选择入口，尚无真实意图识别。陪伴不具备持续对话推理或偏好跨任务继承能力。
+1. **`create` 和 `chat` 仍使用 mock。** 调用方选择工作流入口；`assess` 独立提供真实模型的单条消息评估和纲要预览。陪伴不具备持续对话推理或偏好跨任务继承能力。
 2. **不生成图片，也不做实际视觉或内容安全检查。** `published` 仅表示模拟记录通过流程，`image_path=null`，不是可展示的真实作品。精选库为空，因此兜底会明确失败。
 3. **风险接口只是测试替身。** `[risk]` 和 `[uncertain]` 标记演示阻断分支，不是可部署的风险识别系统。接真实用户前须接入独立风险检查、支持流程及实际图片检查。
 4. **后台队列是本进程线程池。** 不提供跨进程 worker 锁或自动重启调度；等待题目可直接恢复，已 checkpoint 的非等待任务可显式 `recover <task_id>`。首个 checkpoint 之前进程退出需重新建任务。每个数据库目录同时只运行一个应用服务实例。

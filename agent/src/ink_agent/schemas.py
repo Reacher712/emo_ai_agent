@@ -1,4 +1,4 @@
-from typing import Any, Literal, TypedDict
+from typing import Annotated, Any, Literal, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -46,11 +46,70 @@ class Answer(Contract):
         return self
 
 
+ExperienceScore = Annotated[int, Field(strict=True, ge=0, le=4)]
+
+
+class TargetExperienceAxes(Contract):
+    """画面希望带来的体验。0 为低，2 为中，4 为高，1 和 3 为中间档。None 表示未指定。"""
+
+    axis_version: Literal["v1"] = "v1"
+    target_source: Literal["user_explicit", "user_confirmed", "system_suggested"] | None = Field(
+        default=None,
+        description="目标来源：用户明确表达、用户确认的建议或系统建议。",
+    )
+    brightness: ExperienceScore | None = Field(
+        default=None,
+        description="明亮度：0 暮色、深墨；2 柔和日光；4 通透晨光、亮部清晰。",
+    )
+    vitality: ExperienceScore | None = Field(
+        default=None,
+        description="活力度：0 静水、枝叶安静；2 微风、缓流；4 新生枝叶、飞鸟、流动的溪水。",
+    )
+    calmness: ExperienceScore | None = Field(
+        default=None,
+        description="舒缓度：0 强对比、节奏鲜明；2 过渡自然；4 柔和对比、笔触平稳。",
+    )
+    warmth: ExperienceScore | None = Field(
+        default=None,
+        description="温暖感：0 清冷月色、疏离氛围；2 中性气氛；4 灯火、小屋、柔暖光线。",
+    )
+    openness: ExperienceScore | None = Field(
+        default=None,
+        description="开阔感：0 近景庭院；2 溪岸中景；4 远山、宽阔水面、大片留白。",
+    )
+    novelty: ExperienceScore | None = Field(
+        default=None,
+        description="新奇感：0 熟悉的山水意象；2 熟悉场景中有新细节；4 少见视角、富想象力的意象。",
+    )
+
+
 class Brief(Contract):
     request: str = Field(min_length=1)
     scene: str = Field(min_length=1)
+    target_experience_axes: TargetExperienceAxes | None = None
     defaults_used: list[str] = Field(default_factory=list)
     changes: list[str] = Field(default_factory=list)
+
+
+class CurrentFeeling(Contract):
+    label: Literal["焦虑", "压力", "低落", "平静", "积极", "其他"]
+    evidence: str = Field(min_length=1)
+    source: Literal["user_reported", "inferred"]
+
+
+class EmotionAssessment(Contract):
+    feelings: list[CurrentFeeling] = Field(description="用户当前感受。空列表表示未知。")
+
+
+class SupportPlan(Contract):
+    suggestion: str = Field(min_length=1)
+
+
+class AssessmentPreview(Contract):
+    emotion_assessment: EmotionAssessment
+    support_plan: SupportPlan
+    target_experience_axes: TargetExperienceAxes | None = None
+    brief: Brief | None = None
 
 
 class Plan(Contract):

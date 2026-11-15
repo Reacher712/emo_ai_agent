@@ -3,15 +3,22 @@ import json
 import sys
 from uuid import uuid4
 
+from .conversation import run_chat
+from .emotion_support import AssessmentError, assess
 from .service import AgentService
 
 
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(description="国画 Agent LangGraph 骨架（仅 mock）")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
+    parser = argparse.ArgumentParser(description="国画 Agent 命令行")
     parser.add_argument("--db-dir", default="runtime")
     sub = parser.add_subparsers(dest="command", required=True)
+    assessment = sub.add_parser("assess", help="用本地 Qwen3.5-4B 评估情绪并预览创作纲要")
+    assessment.add_argument("message")
+    sub.add_parser("local-chat", help="用本地模型聊天，在明确创作后预览六轴")
     create = sub.add_parser("create", help="明确提交创作任务，不进行自动意图识别")
     create.add_argument("message")
     create.add_argument("--scenario", choices=["direct", "ask", "revise", "fallback", "retrieve"], default="direct")
@@ -30,6 +37,14 @@ def main():
     choices.add_argument("--skip", action="store_true")
     args = parser.parse_args()
     try:
+        if args.command == "local-chat":
+            run_chat()
+            return
+        if args.command == "assess":
+            preview = assess(args.message)
+            exclude = {"target_experience_axes", "brief"} if preview.brief is None else None
+            print(preview.model_dump_json(indent=2, exclude=exclude))
+            return
         with AgentService(args.db_dir) as app:
             if args.command == "create":
                 task = app.submit(args.message, session_id=args.session, scenario=args.scenario,
@@ -53,7 +68,7 @@ def main():
                 if result["status"] == "recovering":
                     result = app.wait(args.task_id)
             print(json.dumps(result, ensure_ascii=False, indent=2))
-    except (ValueError, KeyError) as exc:
+    except (AssessmentError, ValueError, KeyError) as exc:
         parser.exit(2, f"错误：{exc}\n")
 
 

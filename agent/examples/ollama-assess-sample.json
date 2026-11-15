@@ -1,0 +1,40 @@
+{
+  "emotion_assessment": {
+    "feelings": [
+      {
+        "label": "焦虑",
+        "evidence": "我很紧张",
+        "source": "user_reported"
+      }
+    ]
+  },
+  "support_plan": {
+    "suggestion": "听起来你现在有些紧张，想看看明亮、有生机的画面来缓解一下。"
+  },
+  "target_experience_axes": {
+    "axis_version": "v1",
+    "target_source": "user_explicit",
+    "brightness": 4,
+    "vitality": 4,
+    "calmness": null,
+    "warmth": null,
+    "openness": null,
+    "novelty": null
+  },
+  "brief": {
+    "request": "想看一幅明亮、有生机的画",
+    "scene": "明亮、有生机",
+    "target_experience_axes": {
+      "axis_version": "v1",
+      "target_source": "user_explicit",
+      "brightness": 4,
+      "vitality": 4,
+      "calmness": null,
+      "warmth": null,
+      "openness": null,
+      "novelty": null
+    },
+    "defaults_used": [],
+    "changes": []
+  }
+}
